@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Planificador visual de menús semanales con lista de la compra automática."
+    />
+    <title>Mesa — Tu menú semanal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Mesa, inicio">
+          <span class="brand-mark">M</span>
+          <span>Mesa</span>
+        </a>
+        <nav class="view-switch" aria-label="Vistas principales">
+          <button class="nav-button active" data-view="menu">Menú</button>
+          <button class="nav-button" data-view="shopping">
+            Compra <span class="count-badge" id="shopping-count">0</span>
+          </button>
+        </nav>
+        <button class="icon-button" id="reset-menu" title="Vaciar menú" aria-label="Vaciar menú">↻</button>
+      </header>
+
+      <main>
+        <section class="view active" id="menu-view">
+          <div class="hero">
+            <div>
+              <p class="eyebrow">Esta semana</p>
+              <h1>¿Qué ponemos<br />en la mesa?</h1>
+              <p class="hero-copy">Organiza la semana de un vistazo. Simple, apetecible y sin improvisar.</p>
+            </div>
+            <div class="week-controls" aria-label="Selector de semana">
+              <button class="circle-button" id="previous-week" aria-label="Semana anterior">←</button>
+              <div>
+                <strong id="week-range">13 – 19 julio</strong>
+                <span id="week-year">2026</span>
+              </div>
+              <button class="circle-button" id="next-week" aria-label="Semana siguiente">→</button>
+            </div>
+          </div>
+
+          <section class="week-grid" id="week-grid" aria-label="Menú semanal"></section>
+
+          <aside class="weekly-note">
+            <span class="note-icon">✦</span>
+            <label for="week-note">Nota para esta semana</label>
+            <input id="week-note" type="text" placeholder="Ej. El jueves cenamos fuera" maxlength="100" />
+          </aside>
+        </section>
+
+        <section class="view" id="shopping-view">
+          <div class="shopping-header">
+            <div>
+              <p class="eyebrow">Según tu menú</p>
+              <h1>Lista de la compra</h1>
+              <p class="hero-copy">Los ingredientes aparecen automáticamente al añadir platos a la semana.</p>
+            </div>
+            <button class="primary-button" id="copy-list">Copiar lista</button>
+          </div>
+          <div class="shopping-progress">
+            <div>
+              <span id="progress-label">0 de 0 comprados</span>
+              <strong id="progress-percentage">0%</strong>
+            </div>
+            <div class="progress-track"><span id="progress-bar"></span></div>
+          </div>
+          <div class="shopping-layout">
+            <div class="shopping-groups" id="shopping-groups"></div>
+            <aside class="menu-summary">
+              <p class="eyebrow">Resumen</p>
+              <h2>Tu semana</h2>
+              <div id="menu-summary-list"></div>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="meal-modal" aria-hidden="true">
+      <div class="meal-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow" id="modal-slot">Comida · Lunes</p>
+            <h2 id="modal-title">Elige un plato</h2>
+          </div>
+          <button class="icon-button" id="close-modal" aria-label="Cerrar">×</button>
+        </div>
+        <label class="search-field">
+          <span>⌕</span>
+          <input id="meal-search" type="search" placeholder="Buscar entre tus platos habituales…" />
+        </label>
+        <div class="meal-options" id="meal-options"></div>
+        <form class="custom-meal" id="custom-meal-form">
+          <p>¿No está en tu recetario?</p>
+          <div>
+            <input id="custom-meal-name" type="text" placeholder="Escribe un plato nuevo" maxlength="50" required />
+            <button class="primary-button" type="submit">Añadir</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
