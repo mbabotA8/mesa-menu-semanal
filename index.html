@@ -30,9 +30,14 @@
             Compra <span class="count-badge" id="shopping-count">0</span>
           </button>
         </nav>
-        <button class="account-button" id="account-button" aria-label="Cuenta y sincronización">
-          <span class="sync-dot"></span><span id="account-label">Sincronizar</span>
-        </button>
+        <div class="header-actions">
+          <button class="account-button" id="account-button" aria-label="Cuenta y sincronización">
+            <span class="sync-dot"></span><span id="account-label">Sincronizar</span>
+          </button>
+          <button class="options-button" id="options-button" aria-label="Abrir opciones">
+            <span aria-hidden="true">⚙</span><span class="options-label">Opciones</span>
+          </button>
+        </div>
       </header>
 
       <main>
@@ -43,21 +48,13 @@
               <h1>¿Qué ponemos<br />en la mesa?</h1>
               <p class="hero-copy">Organiza la semana de un vistazo. Simple, apetecible y sin improvisar.</p>
             </div>
-            <div class="hero-tools">
-              <label class="child-menu-toggle" for="child-menu-enabled">
-                <span class="child-toggle-icon">🧒</span>
-                <span class="child-toggle-copy"><strong>Menú infantil</strong><small>Segunda opción diaria</small></span>
-                <input id="child-menu-enabled" type="checkbox" />
-                <span class="toggle-track" aria-hidden="true"><span></span></span>
-              </label>
-              <div class="week-controls" aria-label="Selector de semana">
-                <button class="circle-button" id="previous-week" aria-label="Semana anterior">←</button>
-                <div>
-                  <strong id="week-range">13 – 19 julio</strong>
-                  <span id="week-year">2026</span>
-                </div>
-                <button class="circle-button" id="next-week" aria-label="Semana siguiente">→</button>
+            <div class="week-controls" aria-label="Selector de semana">
+              <button class="circle-button" id="previous-week" aria-label="Semana anterior">←</button>
+              <div>
+                <strong id="week-range">13 – 19 julio</strong>
+                <span id="week-year">2026</span>
               </div>
+              <button class="circle-button" id="next-week" aria-label="Semana siguiente">→</button>
             </div>
           </div>
 
@@ -171,6 +168,23 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-backdrop" id="options-modal" aria-hidden="true">
+      <div class="meal-modal options-modal" role="dialog" aria-modal="true" aria-labelledby="options-title">
+        <div class="modal-header">
+          <div><p class="eyebrow">Preferencias</p><h2 id="options-title">Opciones</h2></div>
+          <button class="icon-button" id="close-options-modal" aria-label="Cerrar">×</button>
+        </div>
+        <p class="options-intro">Activa solamente las funciones adicionales que necesite vuestra familia.</p>
+        <label class="child-menu-toggle option-row" for="child-menu-enabled">
+          <span class="child-toggle-icon">🧒</span>
+          <span class="child-toggle-copy"><strong>Menú infantil</strong><small>Segunda comida y cena para cada día</small></span>
+          <input id="child-menu-enabled" type="checkbox" />
+          <span class="toggle-track" aria-hidden="true"><span></span></span>
+        </label>
+      </div>
+    </div>
+
 
     <div class="toast" id="toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.5/dist/umd/supabase.min.js"></script>

@@ -206,7 +206,7 @@ h2 { margin: 0; font-size: 32px; }
   .meal-options { grid-template-columns: repeat(2, 1fr); }
   .weekly-note { align-items: flex-start; flex-wrap: wrap; }
   .weekly-note input { flex-basis: 100%; }
-  .nav-button, .circle-button, .icon-button, .account-button { min-height: 44px; }
+  .nav-button, .circle-button, .icon-button, .account-button, .options-button { min-height: 44px; }
   .remove-meal { opacity: 1; width: 32px; height: 32px; font-size: 20px; }
   .meal-modal { max-height: calc(100dvh - 24px); padding: 22px 18px; border-radius: 20px; }
   input:not([type="checkbox"]), select { font-size: 16px !important; }
@@ -226,7 +226,10 @@ h2 { margin: 0; font-size: 32px; }
   .day-header, .day-name { min-width: 0; }
 }
 
-.account-button { justify-self: end; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 99px; background: var(--paper); cursor: pointer; font-weight: 700; font-size: 12px; }
+.header-actions { justify-self: end; display: flex; align-items: center; gap: 8px; }
+.account-button, .options-button { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 99px; background: var(--paper); cursor: pointer; font-weight: 700; font-size: 12px; }
+.options-button { color: var(--forest); }
+.options-button:hover, .account-button:hover { border-color: var(--sage); transform: translateY(-1px); }
 .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #c7cbc7; box-shadow: 0 0 0 4px rgba(199,203,199,.18); }
 .sync-dot.online { background: #5a9b6b; box-shadow: 0 0 0 4px rgba(90,155,107,.15); }
 .account-button.connected .sync-dot { background: #5a9b6b; box-shadow: 0 0 0 4px rgba(90,155,107,.15); }
@@ -281,8 +284,8 @@ body.modal-open { overflow: hidden; }
   .recipe-library { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-  .account-button { padding: 10px; }
-  .account-button #account-label { display: none; }
+  .account-button, .options-button { min-width: 44px; padding: 10px; justify-content: center; }
+  .account-button #account-label, .options-button .options-label { display: none; }
   .recipes-header { align-items: flex-start; flex-direction: column; padding-top: 34px; }
   .recipe-library { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .recipe-form-grid { grid-template-columns: 1fr 80px; }
@@ -294,7 +297,6 @@ body.modal-open { overflow: hidden; }
   .recipe-library { grid-template-columns: 1fr; }
 }
 
-.hero-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
 .child-menu-toggle { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); cursor: pointer; user-select: none; }
 .child-toggle-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--sage-light); font-size: 19px; }
 .child-toggle-copy { margin-right: 4px; }
@@ -308,6 +310,10 @@ body.modal-open { overflow: hidden; }
 .child-menu-toggle input:checked + .toggle-track { background: var(--terracotta); }
 .child-menu-toggle input:checked + .toggle-track span { transform: translateX(16px); }
 
+.options-modal { width: min(520px, 100%); }
+.options-intro { margin: 20px 0 14px; color: var(--muted); line-height: 1.55; }
+.options-modal .option-row { width: 100%; padding: 15px; }
+.options-modal .child-toggle-copy { flex: 1; }
 .child-meal { position: relative; margin-top: 12px; padding: 9px; border: 1px solid rgba(40,76,63,.18); border-radius: 11px; background: rgba(229,235,221,.72); }
 .child-label { display: block; margin-bottom: 6px; color: var(--forest); font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .child-empty { width: 100%; min-height: 44px; padding: 6px; border: 1px dashed rgba(217,120,88,.35); border-radius: 8px; color: var(--forest); background: rgba(255,255,255,.72); cursor: pointer; font-size: 11px; font-weight: 700; line-height: 1.2; }
@@ -318,7 +324,6 @@ body.modal-open { overflow: hidden; }
 .child-remove { position: absolute; z-index: 1; top: 22px; right: 5px; display: grid; place-items: center; width: 26px; height: 26px; border: 0; color: var(--muted); background: transparent; cursor: pointer; font-size: 16px; }
 
 @media (max-width: 720px) {
-  .hero-tools { width: 100%; align-items: stretch; }
   .child-menu-toggle { width: 100%; }
   .child-menu-toggle .toggle-track { margin-left: auto; }
 }

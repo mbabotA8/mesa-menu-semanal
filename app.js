@@ -518,6 +518,11 @@ function bindExtendedEvents() {
   $("#account-button").addEventListener("click", () => { updateAccountUI(); openModal("#account-modal"); });
   $("#close-account-modal").addEventListener("click", () => closeModal("#account-modal"));
   $("#account-modal").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeModal("#account-modal"); });
+  $("#options-button").addEventListener("click", () => { $("#child-menu-enabled").checked = state.childMenuEnabled; openModal("#options-modal"); });
+  $("#close-options-modal").addEventListener("click", () => closeModal("#options-modal"));
+  $("#options-modal").addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) closeModal("#options-modal");
+  });
   $("#login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!cloudClient) return showToast("La nube aún no está configurada");
