@@ -43,13 +43,21 @@
               <h1>¿Qué ponemos<br />en la mesa?</h1>
               <p class="hero-copy">Organiza la semana de un vistazo. Simple, apetecible y sin improvisar.</p>
             </div>
-            <div class="week-controls" aria-label="Selector de semana">
-              <button class="circle-button" id="previous-week" aria-label="Semana anterior">←</button>
-              <div>
-                <strong id="week-range">13 – 19 julio</strong>
-                <span id="week-year">2026</span>
+            <div class="hero-tools">
+              <label class="child-menu-toggle" for="child-menu-enabled">
+                <span class="child-toggle-icon">🧒</span>
+                <span class="child-toggle-copy"><strong>Menú infantil</strong><small>Segunda opción diaria</small></span>
+                <input id="child-menu-enabled" type="checkbox" />
+                <span class="toggle-track" aria-hidden="true"><span></span></span>
+              </label>
+              <div class="week-controls" aria-label="Selector de semana">
+                <button class="circle-button" id="previous-week" aria-label="Semana anterior">←</button>
+                <div>
+                  <strong id="week-range">13 – 19 julio</strong>
+                  <span id="week-year">2026</span>
+                </div>
+                <button class="circle-button" id="next-week" aria-label="Semana siguiente">→</button>
               </div>
-              <button class="circle-button" id="next-week" aria-label="Semana siguiente">→</button>
             </div>
           </div>
 

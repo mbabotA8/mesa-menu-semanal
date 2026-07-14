@@ -48,6 +48,7 @@ const state = {
   notes: JSON.parse(localStorage.getItem("mesa-notes") || "{}"),
   checked: JSON.parse(localStorage.getItem("mesa-checked") || "{}"),
   customRecipes: JSON.parse(localStorage.getItem("mesa-recipes") || "[]"),
+  childMenuEnabled: JSON.parse(localStorage.getItem("mesa-child-menu") || "false"),
   activeSlot: null,
   pendingRecipe: null,
   isApplyingCloud: false
@@ -82,6 +83,7 @@ function save() {
   localStorage.setItem("mesa-notes", JSON.stringify(state.notes));
   localStorage.setItem("mesa-checked", JSON.stringify(state.checked));
   localStorage.setItem("mesa-recipes", JSON.stringify(state.customRecipes));
+  localStorage.setItem("mesa-child-menu", JSON.stringify(state.childMenuEnabled));
   if (!state.isApplyingCloud) scheduleCloudSave();
 }
 
@@ -99,6 +101,7 @@ function renderWeek() {
   $("#week-range").textContent = range;
   $("#week-year").textContent = sunday.getFullYear();
   $("#week-note").value = state.notes[weekKey()] || "";
+  $("#child-menu-enabled").checked = state.childMenuEnabled;
 
   const today = dateKey(new Date());
   $("#week-grid").innerHTML = DAYS.map((day, index) => {
@@ -119,23 +122,43 @@ function renderWeek() {
 function renderSlot(dayIndex, type, label) {
   const key = planKey(dayIndex, type);
   const recipe = recipeFor(state.plans[key]);
-  if (!recipe) return `<div class="meal-slot">
-    <span class="slot-label">${label}</span>
-    <button class="meal-empty" data-day="${dayIndex}" data-type="${type}"><span>＋</span>Añadir plato</button>
-  </div>`;
-  return `<div class="meal-slot">
-    <span class="slot-label">${label}</span>
+  const mainMeal = recipe ? `
     <button class="remove-meal" data-remove="${key}" aria-label="Quitar ${escapeHtml(recipe.name)}">×</button>
     <button class="meal-filled" data-day="${dayIndex}" data-type="${type}">
-      <span class="meal-visual" style="--meal-color:${recipe.color}">${recipe.icon}</span>
+      <span class="meal-visual" style="--meal-color:${recipe.color}">${escapeHtml(recipe.icon)}</span>
       <strong>${escapeHtml(recipe.name)}</strong><small>${escapeHtml(recipe.time)}</small>
-    </button>
+    </button>` : `
+    <button class="meal-empty" data-day="${dayIndex}" data-type="${type}"><span>＋</span>Añadir plato</button>`;
+
+  const childType = `${type}-child`;
+  const childKey = planKey(dayIndex, childType);
+  const childRecipe = recipeFor(state.plans[childKey]);
+  const childMeal = !state.childMenuEnabled ? "" : childRecipe ? `
+    <div class="child-meal child-meal-filled">
+      <span class="child-label">🧒 Infantil</span>
+      <button class="child-remove" data-remove="${childKey}" aria-label="Quitar ${escapeHtml(childRecipe.name)}">×</button>
+      <button class="child-filled" data-day="${dayIndex}" data-type="${childType}">
+        <span style="--meal-color:${childRecipe.color}">${escapeHtml(childRecipe.icon)}</span>
+        <strong>${escapeHtml(childRecipe.name)}</strong>
+      </button>
+    </div>` : `
+    <div class="child-meal">
+      <span class="child-label">🧒 Infantil</span>
+      <button class="child-empty" data-day="${dayIndex}" data-type="${childType}"><span>＋</span> Añadir</button>
+    </div>`;
+
+  return `<div class="meal-slot">
+    <span class="slot-label">${label}</span>
+    ${mainMeal}
+    ${childMeal}
   </div>`;
 }
 
 function openMealModal(day, type) {
   state.activeSlot = { day: Number(day), type };
-  $("#modal-slot").textContent = `${type === "lunch" ? "Comida" : "Cena"} · ${DAYS[day]}`;
+  const child = type.endsWith("-child");
+  const mealName = type.startsWith("lunch") ? "Comida" : "Cena";
+  $("#modal-slot").textContent = `${mealName}${child ? " infantil" : ""} · ${DAYS[day]}`;
   $("#meal-search").value = "";
   renderMealOptions();
   $("#meal-modal").classList.add("open");
@@ -166,7 +189,7 @@ function selectMeal(recipeId) {
 function selectedRecipes() {
   const prefix = `${weekKey()}-`;
   return Object.entries(state.plans)
-    .filter(([key]) => key.startsWith(prefix))
+    .filter(([key]) => key.startsWith(prefix) && (state.childMenuEnabled || !key.endsWith("-child")))
     .map(([key, value]) => ({ key, recipe: recipeFor(value) }));
 }
 
@@ -239,8 +262,9 @@ function renderShopping() {
 
   const recipes = selectedRecipes();
   $("#menu-summary-list").innerHTML = recipes.length ? recipes.map(({ key, recipe }) => {
-    const [, , , day, type] = key.split("-");
-    return `<div class="summary-meal"><span>${escapeHtml(recipe.icon)}</span><div><strong>${escapeHtml(recipe.name)}</strong><small>${DAYS[Number(day)]} · ${type === "lunch" ? "Comida" : "Cena"}</small></div></div>`;
+    const [, , , day, type, variant] = key.split("-");
+    const childLabel = variant === "child" ? " infantil" : "";
+    return `<div class="summary-meal"><span>${escapeHtml(recipe.icon)}</span><div><strong>${escapeHtml(recipe.name)}</strong><small>${DAYS[Number(day)]} · ${type === "lunch" ? "Comida" : "Cena"}${childLabel}</small></div></div>`;
   }).join("") : `<p class="hero-copy">Todavía no hay platos elegidos.</p>`;
   updateProgress(items);
 }
@@ -381,7 +405,7 @@ let realtimeChannel = null;
 let cloudSaveTimer = null;
 
 function localSnapshot() {
-  return { plans: state.plans, notes: state.notes, checked: state.checked, customRecipes: state.customRecipes };
+  return { plans: state.plans, notes: state.notes, checked: state.checked, customRecipes: state.customRecipes, childMenuEnabled: state.childMenuEnabled };
 }
 
 function scheduleCloudSave() {
@@ -413,6 +437,7 @@ function applyCloudState(data) {
   state.notes = data.notes || {};
   state.checked = data.checked || {};
   state.customRecipes = data.customRecipes || [];
+  state.childMenuEnabled = data.childMenuEnabled ?? state.childMenuEnabled;
   save();
   state.isApplyingCloud = false;
   renderWeek(); renderRecipeLibrary();
@@ -537,6 +562,12 @@ $("#meal-modal").addEventListener("click", (event) => { if (event.target === eve
 $("#meal-search").addEventListener("input", (event) => renderMealOptions(event.target.value));
 $("#week-note").addEventListener("input", (event) => { state.notes[weekKey()] = event.target.value; save(); });
 $("#shopping-groups").addEventListener("change", (event) => {
+$("#child-menu-enabled").addEventListener("change", (event) => {
+  state.childMenuEnabled = event.target.checked;
+  save();
+  renderWeek();
+  showToast(state.childMenuEnabled ? "Menú infantil activado" : "Menú infantil oculto");
+});
   const itemKey = event.target.dataset.item;
   const action = event.target.dataset.action;
   if (!itemKey || !action) return;

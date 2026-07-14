@@ -9,6 +9,7 @@ Para el modo local, abre `index.html` en un navegador moderno. Para usar acceso 
 ## Funciones incluidas
 
 - Vista semanal de comidas y cenas, adaptable a móvil.
+- Menú infantil opcional con segunda comida y cena compactas, sincronizadas y vinculadas a la compra.
 - Recetario de platos habituales con búsqueda.
 - Submenú visual de platos habituales.
 - Creación y edición de recetas con ingredientes, cantidades y más de 50 iconos categorizados.
