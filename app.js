@@ -13,6 +13,35 @@ const RECIPES = [
   { id: "rice", name: "Arroz con verduras", icon: "🍚", time: "30 min", color: "#e8e1c8", ingredients: [["Despensa", "Arroz", "300 g"], ["Verdura", "Pimiento rojo", "1 ud"], ["Verdura", "Guisantes", "200 g"], ["Verdura", "Champiñones", "200 g"]] }
 ];
 
+const RECIPE_ICON_GROUPS = {
+  "Pastas y arroces": [
+    ["🍝", "Espaguetis"], ["🍝🍅", "Pasta con tomate"], ["🍝🌿", "Pasta al pesto"],
+    ["🧀🍝", "Pasta con queso"], ["🍜", "Fideos o noodles"], ["🥟", "Ravioli o pasta rellena"],
+    ["🍚", "Arroz"], ["🥘", "Paella o arroz guisado"], ["🍛", "Curry con arroz"]
+  ],
+  "Verduras y platos ligeros": [
+    ["🥗", "Ensalada"], ["🥦", "Brócoli"], ["🥕", "Zanahoria"], ["🍅", "Tomate"],
+    ["🥬", "Verdura de hoja"], ["🫑", "Pimiento"], ["🍆", "Berenjena"], ["🥒", "Calabacín o pepino"],
+    ["🥔", "Patata"], ["🍄", "Setas"], ["🧅", "Cebolla"], ["🥑", "Aguacate"], ["🌽", "Maíz"]
+  ],
+  "Carnes": [
+    ["🥩", "Ternera"], ["🍗", "Pollo"], ["🍖", "Carne asada"], ["🥓", "Cerdo o bacon"],
+    ["🐑", "Cordero"], ["🍔", "Hamburguesa"], ["🌭", "Salchichas"], ["🧆", "Albóndigas"]
+  ],
+  "Pescados y mariscos": [
+    ["🐟", "Pescado"], ["🐠", "Pescado tropical"], ["🐡", "Pescado especial"], ["🦐", "Gambas"],
+    ["🦑", "Calamar"], ["🐙", "Pulpo"], ["🦀", "Cangrejo"], ["🦪", "Marisco"]
+  ],
+  "Legumbres, sopas y huevos": [
+    ["🫘", "Legumbres"], ["🥘🫘", "Guiso de legumbres"], ["🍲", "Guiso"], ["🥣", "Sopa o crema"],
+    ["🍳", "Huevos"], ["🥚", "Huevo cocido"], ["🧀", "Plato con queso"]
+  ],
+  "Otros favoritos": [
+    ["🍕", "Pizza"], ["🌮", "Tacos"], ["🥙", "Kebab o pita"], ["🥪", "Bocadillo"],
+    ["🫓", "Torta o focaccia"], ["🍱", "Plato combinado"], ["🍽️", "Plato general"], ["🔥", "Barbacoa"]
+  ]
+};
+
 const state = {
   weekOffset: 0,
   plans: JSON.parse(localStorage.getItem("mesa-plans") || "{}"),
@@ -141,6 +170,23 @@ function selectedRecipes() {
     .map(([key, value]) => ({ key, recipe: recipeFor(value) }));
 }
 
+function parseQuantity(value) {
+  const match = String(value || "").trim().replace(",", ".").match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+  return match ? { amount: Number(match[1]), unit: match[2].trim() } : null;
+}
+
+function formatAmount(amount) {
+  return Number.isInteger(amount) ? String(amount) : String(Math.round(amount * 100) / 100).replace(".", ",");
+}
+
+function combineQuantities(quantities) {
+  const parsed = quantities.map(parseQuantity);
+  const sameUnit = parsed.every(Boolean) && parsed.every((item) => item.unit.toLowerCase() === parsed[0].unit.toLowerCase());
+  if (!sameUnit) return quantities.join(" + ");
+  const total = parsed.reduce((sum, item) => sum + item.amount, 0);
+  return `${formatAmount(total)} ${parsed[0].unit}`.trim();
+}
+
 function shoppingItems() {
   const items = new Map();
   selectedRecipes().forEach(({ recipe }) => recipe.ingredients.forEach(([group, name, quantity]) => {
@@ -148,21 +194,45 @@ function shoppingItems() {
     if (!items.has(key)) items.set(key, { key, group, name, quantities: [] });
     items.get(key).quantities.push(quantity);
   }));
-  return [...items.values()].map((item) => ({ ...item, quantity: item.quantities.join(" + ") }));
+  return [...items.values()].map((item) => ({ ...item, quantity: combineQuantities(item.quantities) }));
+}
+
+function shoppingRecord(item) {
+  const stored = state.checked[`${weekKey()}-${item.key}`];
+  const required = typeof stored === "object" && stored?.required ? stored.required : item.quantity;
+  const parsed = parseQuantity(required);
+  if (typeof stored === "boolean") return { done: stored, bought: stored && parsed ? parsed.amount : 0, required };
+  return { done: false, bought: 0, required, ...(stored || {}) };
+}
+
+function itemCompletion(item) {
+  const record = shoppingRecord(item);
+  if (record.done) return 1;
+  const required = parseQuantity(record.required);
+  if (!required || required.amount <= 0) return 0;
+  return Math.min(Math.max(Number(record.bought) || 0, 0) / required.amount, 1);
 }
 
 function renderShopping() {
   const items = shoppingItems();
   const grouped = Object.groupBy ? Object.groupBy(items, (item) => item.group) : items.reduce((acc, item) => ((acc[item.group] ||= []).push(item), acc), {});
-  const icons = { "Verdura": "🥬", "Carnicería": "🥩", "Pescadería": "🐟", "Huevos y lácteos": "🥛", "Despensa": "🫙", "Legumbres": "🫘" };
+  const icons = { "Verdura": "🥬", "Carnicería": "🥩", "Pescadería": "🐟", "Huevos y lácteos": "🥛", "Despensa": "🫙", "Legumbres": "🫘", "Panadería": "🥖", "Otros": "🛒" };
   $("#shopping-count").textContent = items.length;
   $("#shopping-groups").innerHTML = items.length ? Object.entries(grouped).map(([group, groupItems]) => `<section class="shopping-group">
     <h3><span>${icons[group] || "🛒"}</span>${group}</h3>
     ${groupItems.map((item) => {
-      const checked = !!state.checked[`${weekKey()}-${item.key}`];
-      return `<div class="shopping-item ${checked ? "checked" : ""}">
-        <input type="checkbox" id="item-${item.key}" data-item="${item.key}" ${checked ? "checked" : ""} />
-        <label for="item-${item.key}">${escapeHtml(item.name)}</label><small>${escapeHtml(item.quantity)}</small>
+      const record = shoppingRecord(item);
+      const completion = itemCompletion(item);
+      const complete = completion >= 1;
+      const partial = completion > 0 && !complete;
+      return `<div class="shopping-item ${complete ? "checked" : partial ? "partial" : ""}">
+        <input class="item-complete" type="checkbox" id="item-${item.key}" data-item="${item.key}" data-action="complete" ${complete ? "checked" : ""} />
+        <label for="item-${item.key}">${escapeHtml(item.name)}</label>
+        <div class="quantity-control" title="Cantidad comprada de cantidad necesaria">
+          <input class="bought-quantity" type="number" min="0" step="0.1" inputmode="decimal" data-item="${item.key}" data-action="bought" value="${record.bought || ""}" aria-label="Cantidad comprada de ${escapeHtml(item.name)}" placeholder="0" />
+          <span>de</span>
+          <input class="required-quantity" type="text" data-item="${item.key}" data-action="required" value="${escapeHtml(record.required)}" aria-label="Cantidad necesaria de ${escapeHtml(item.name)}" />
+        </div>
       </div>`;
     }).join("")}
   </section>`).join("") : `<div class="empty-shopping"><span>🧺</span><h2>Tu cesta está esperando</h2><p>Añade platos al menú y aquí aparecerán sus ingredientes.</p></div>`;
@@ -176,9 +246,11 @@ function renderShopping() {
 }
 
 function updateProgress(items = shoppingItems()) {
-  const bought = items.filter((item) => state.checked[`${weekKey()}-${item.key}`]).length;
-  const percentage = items.length ? Math.round((bought / items.length) * 100) : 0;
-  $("#progress-label").textContent = `${bought} de ${items.length} comprados`;
+  const completions = items.map(itemCompletion);
+  const complete = completions.filter((value) => value >= 1).length;
+  const partial = completions.filter((value) => value > 0 && value < 1).length;
+  const percentage = items.length ? Math.round((completions.reduce((sum, value) => sum + value, 0) / items.length) * 100) : 0;
+  $("#progress-label").textContent = partial ? `${complete} completos · ${partial} parciales` : `${complete} de ${items.length} comprados`;
   $("#progress-percentage").textContent = `${percentage}%`;
   $("#progress-bar").style.width = `${percentage}%`;
 }
@@ -198,6 +270,13 @@ function showToast(message) {
 
 function allRecipes() {
   return [...RECIPES, ...state.customRecipes];
+}
+function populateRecipeIcons() {
+  $("#recipe-icon").innerHTML = Object.entries(RECIPE_ICON_GROUPS).map(([group, icons]) =>
+    `<optgroup label="${escapeHtml(group)}">${icons.map(([icon, label]) =>
+      `<option value="${escapeHtml(icon)}">${escapeHtml(icon)} · ${escapeHtml(label)}</option>`
+    ).join("")}</optgroup>`
+  ).join("");
 }
 
 function escapeHtml(value = "") {
@@ -429,6 +508,7 @@ function bindExtendedEvents() {
 }
 
 async function initializeApp() {
+  populateRecipeIcons();
   renderWeek();
   renderRecipeLibrary();
   bindExtendedEvents();
@@ -457,12 +537,37 @@ $("#meal-modal").addEventListener("click", (event) => { if (event.target === eve
 $("#meal-search").addEventListener("input", (event) => renderMealOptions(event.target.value));
 $("#week-note").addEventListener("input", (event) => { state.notes[weekKey()] = event.target.value; save(); });
 $("#shopping-groups").addEventListener("change", (event) => {
-  if (!event.target.dataset.item) return;
-  state.checked[`${weekKey()}-${event.target.dataset.item}`] = event.target.checked;
+  const itemKey = event.target.dataset.item;
+  const action = event.target.dataset.action;
+  if (!itemKey || !action) return;
+  const item = shoppingItems().find((candidate) => candidate.key === itemKey);
+  if (!item) return;
+  const record = shoppingRecord(item);
+  if (action === "complete") {
+    record.done = event.target.checked;
+    const required = parseQuantity(record.required);
+    record.bought = event.target.checked && required ? required.amount : 0;
+  }
+  if (action === "bought") {
+    record.bought = Math.max(Number(event.target.value) || 0, 0);
+    const required = parseQuantity(record.required);
+    record.done = !!required && record.bought >= required.amount;
+  }
+  if (action === "required") {
+    record.required = event.target.value.trim() || item.quantity;
+    const required = parseQuantity(record.required);
+    record.done = !!required && Number(record.bought) >= required.amount;
+  }
+  state.checked[`${weekKey()}-${item.key}`] = record;
   save(); renderShopping();
 });
 $("#copy-list").addEventListener("click", async () => {
-  const text = shoppingItems().map((item) => `□ ${item.name} — ${item.quantity}`).join("\n");
+  const text = shoppingItems().map((item) => {
+    const record = shoppingRecord(item);
+    const mark = itemCompletion(item) >= 1 ? "☑" : "□";
+    const partial = Number(record.bought) > 0 ? ` · ${formatAmount(Number(record.bought))} comprado` : "";
+    return `${mark} ${item.name} — ${record.required}${partial}`;
+  }).join("\n");
   if (!text) return showToast("Primero añade algún plato");
   await navigator.clipboard.writeText(text); showToast("Lista copiada");
 });

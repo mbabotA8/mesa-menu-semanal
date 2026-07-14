@@ -11,10 +11,10 @@ Para el modo local, abre `index.html` en un navegador moderno. Para usar acceso 
 - Vista semanal de comidas y cenas, adaptable a móvil.
 - Recetario de platos habituales con búsqueda.
 - Submenú visual de platos habituales.
-- Creación y edición de recetas con ingredientes y cantidades.
+- Creación y edición de recetas con ingredientes, cantidades y más de 50 iconos categorizados.
 - Navegación entre semanas y notas semanales.
 - Lista de la compra agrupada por secciones.
-- Progreso de compra, copia al portapapeles y persistencia local.
+- Cantidades necesarias editables, compra parcial, progreso proporcional, copia y persistencia local.
 - Acceso sin contraseña mediante enlace enviado por email.
 - Sincronización en tiempo real del menú, compra, notas y recetario.
 
