@@ -390,6 +390,7 @@ async function initializeCloud() {
 
 function bindExtendedEvents() {
   $("#new-recipe").addEventListener("click", () => openRecipeEditor());
+  $("#create-recipe-from-meal").addEventListener("click", () => { closeMealModal(); openRecipeEditor(); });
   $("#close-recipe-modal").addEventListener("click", closeRecipeEditor);
   $("#recipe-form").addEventListener("submit", saveRecipeFromForm);
   $("#add-ingredient").addEventListener("click", () => $("#ingredient-rows").insertAdjacentHTML("beforeend", ingredientRow()));
@@ -455,11 +456,6 @@ $("#close-modal").addEventListener("click", closeMealModal);
 $("#meal-modal").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeMealModal(); });
 $("#meal-search").addEventListener("input", (event) => renderMealOptions(event.target.value));
 $("#week-note").addEventListener("input", (event) => { state.notes[weekKey()] = event.target.value; save(); });
-$("#custom-meal-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const input = $("#custom-meal-name");
-  selectMeal(`custom:${input.value.trim()}`); input.value = "";
-});
 $("#shopping-groups").addEventListener("change", (event) => {
   if (!event.target.dataset.item) return;
   state.checked[`${weekKey()}-${event.target.dataset.item}`] = event.target.checked;
