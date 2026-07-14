@@ -144,7 +144,7 @@ function renderSlot(dayIndex, type, label) {
     </div>` : `
     <div class="child-meal">
       <span class="child-label">🧒 Infantil</span>
-      <button class="child-empty" data-day="${dayIndex}" data-type="${childType}"><span>＋</span> Añadir</button>
+      <button class="child-empty" data-day="${dayIndex}" data-type="${childType}"><span>＋</span> Añadir plato infantil</button>
     </div>`;
 
   return `<div class="meal-slot">
@@ -561,13 +561,13 @@ $("#close-modal").addEventListener("click", closeMealModal);
 $("#meal-modal").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeMealModal(); });
 $("#meal-search").addEventListener("input", (event) => renderMealOptions(event.target.value));
 $("#week-note").addEventListener("input", (event) => { state.notes[weekKey()] = event.target.value; save(); });
-$("#shopping-groups").addEventListener("change", (event) => {
 $("#child-menu-enabled").addEventListener("change", (event) => {
   state.childMenuEnabled = event.target.checked;
   save();
   renderWeek();
   showToast(state.childMenuEnabled ? "Menú infantil activado" : "Menú infantil oculto");
 });
+$("#shopping-groups").addEventListener("change", (event) => {
   const itemKey = event.target.dataset.item;
   const action = event.target.dataset.action;
   if (!itemKey || !action) return;
