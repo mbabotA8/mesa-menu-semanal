@@ -25,11 +25,14 @@
         </a>
         <nav class="view-switch" aria-label="Vistas principales">
           <button class="nav-button active" data-view="menu">Menú</button>
+          <button class="nav-button" data-view="recipes">Platos</button>
           <button class="nav-button" data-view="shopping">
             Compra <span class="count-badge" id="shopping-count">0</span>
           </button>
         </nav>
-        <button class="icon-button" id="reset-menu" title="Vaciar menú" aria-label="Vaciar menú">↻</button>
+        <button class="account-button" id="account-button" aria-label="Cuenta y sincronización">
+          <span class="sync-dot"></span><span id="account-label">Sincronizar</span>
+        </button>
       </header>
 
       <main>
@@ -57,6 +60,22 @@
             <label for="week-note">Nota para esta semana</label>
             <input id="week-note" type="text" placeholder="Ej. El jueves cenamos fuera" maxlength="100" />
           </aside>
+        </section>
+
+        <section class="view" id="recipes-view">
+          <div class="recipes-header">
+            <div>
+              <p class="eyebrow">Tu recetario</p>
+              <h1>Platos de casa</h1>
+              <p class="hero-copy">Guarda lo que soléis cocinar y úsalo después en cualquier comida o cena.</p>
+            </div>
+            <button class="primary-button" id="new-recipe">＋ Añadir plato</button>
+          </div>
+          <div class="recipe-toolbar">
+            <label class="search-field recipe-search"><span>⌕</span><input id="recipe-search" type="search" placeholder="Buscar platos…" /></label>
+            <span id="recipe-count"></span>
+          </div>
+          <div class="recipe-library" id="recipe-library"></div>
         </section>
 
         <section class="view" id="shopping-view">
@@ -111,7 +130,46 @@
       </div>
     </div>
 
+    <div class="modal-backdrop" id="recipe-modal" aria-hidden="true">
+      <form class="meal-modal recipe-editor" id="recipe-form" role="dialog" aria-modal="true" aria-labelledby="recipe-modal-title">
+        <div class="modal-header">
+          <div><p class="eyebrow">Recetario personal</p><h2 id="recipe-modal-title">Nuevo plato</h2></div>
+          <button class="icon-button" id="close-recipe-modal" type="button" aria-label="Cerrar">×</button>
+        </div>
+        <input id="recipe-edit-id" type="hidden" />
+        <div class="recipe-form-grid">
+          <label><span>Nombre del plato</span><input id="recipe-name" required maxlength="60" placeholder="Ej. Curry de garbanzos" /></label>
+          <label><span>Icono</span><select id="recipe-icon"><option>🍲</option><option>🥗</option><option>🍝</option><option>🍚</option><option>🥘</option><option>🍳</option><option>🐟</option><option>🍗</option><option>🌮</option><option>🥣</option></select></label>
+          <label><span>Tiempo</span><input id="recipe-time" maxlength="20" placeholder="30 min" /></label>
+        </div>
+        <div class="ingredients-editor">
+          <div class="ingredients-title"><div><strong>Ingredientes</strong><small>Se añadirán automáticamente a la compra</small></div><button class="text-button" id="add-ingredient" type="button">＋ Ingrediente</button></div>
+          <div id="ingredient-rows"></div>
+        </div>
+        <div class="form-actions"><button class="secondary-button" id="delete-recipe" type="button">Eliminar</button><button class="primary-button" type="submit">Guardar plato</button></div>
+      </form>
+    </div>
+
+    <div class="modal-backdrop" id="account-modal" aria-hidden="true">
+      <div class="meal-modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
+        <div class="modal-header"><div><p class="eyebrow">Tu espacio</p><h2 id="account-title">Sincroniza Mesa</h2></div><button class="icon-button" id="close-account-modal" aria-label="Cerrar">×</button></div>
+        <div id="signed-out-panel">
+          <div class="cloud-illustration">☁️</div>
+          <p>Entra con tu correo para tener el mismo menú, recetario y compra en todos tus dispositivos.</p>
+          <form id="login-form"><label class="form-label"><span>Correo electrónico</span><input id="login-email" type="email" required placeholder="tu@correo.com" /></label><button class="primary-button full-button" type="submit">Enviarme un enlace de acceso</button></form>
+          <small class="privacy-note">Sin contraseña. Recibirás un enlace de acceso seguro por email.</small>
+        </div>
+        <div id="signed-in-panel" hidden>
+          <div class="signed-user"><span>✓</span><div><strong id="user-email"></strong><small>Todos tus cambios se guardan en la nube</small></div></div>
+          <div class="sync-status-card"><span class="sync-dot online"></span><div><strong id="sync-status-title">Sincronizado</strong><small id="sync-status-detail">Tus dispositivos verán los mismos datos</small></div></div>
+          <button class="secondary-button full-button" id="logout-button">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+
     <div class="toast" id="toast" role="status"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.5/dist/umd/supabase.min.js"></script>
+    <script src="config.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
