@@ -1,5 +1,13 @@
 const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const MEAL_SLOTS = [
+  { type: "breakfast", label: "Desayuno", minimum: 3 },
+  { type: "morning", label: "Media mañana", minimum: 5 },
+  { type: "lunch", label: "Comida", minimum: 2 },
+  { type: "afternoon", label: "Merienda", minimum: 4 },
+  { type: "dinner", label: "Cena", minimum: 2 }
+];
+const MAX_SAVED_WEEKS = 5;
 
 const RECIPES = [
   { id: "lentils", name: "Lentejas con verduras", icon: "🥘", time: "40 min", color: "#f2d7bd", ingredients: [["Legumbres", "Lentejas", "250 g"], ["Verdura", "Zanahorias", "2 ud"], ["Verdura", "Cebolla", "1 ud"], ["Verdura", "Pimiento verde", "1 ud"]] },
@@ -49,6 +57,8 @@ const state = {
   checked: JSON.parse(localStorage.getItem("mesa-checked") || "{}"),
   customRecipes: JSON.parse(localStorage.getItem("mesa-recipes") || "[]"),
   childMenuEnabled: JSON.parse(localStorage.getItem("mesa-child-menu") || "false"),
+  mealCount: Number(localStorage.getItem("mesa-meal-count") || 2),
+  savedWeeks: JSON.parse(localStorage.getItem("mesa-saved-weeks") || "[]"),
   activeSlot: null,
   pendingRecipe: null,
   isApplyingCloud: false
@@ -78,12 +88,45 @@ function dateKey(date) {
 function weekKey() { return dateKey(currentMonday()); }
 function planKey(dayIndex, type) { return `${weekKey()}-${dayIndex}-${type}`; }
 
+function normalizeMealCount(value) {
+  return Math.min(5, Math.max(2, Number(value) || 2));
+}
+
+state.mealCount = normalizeMealCount(state.mealCount);
+state.savedWeeks = Array.isArray(state.savedWeeks) ? state.savedWeeks.slice(0, MAX_SAVED_WEEKS) : [];
+
+function activeMealSlots(count = state.mealCount) {
+  const normalized = normalizeMealCount(count);
+  return MEAL_SLOTS.filter((slot) => slot.minimum <= normalized);
+}
+
+function baseMealType(type) {
+  return String(type || "").replace(/-child$/, "");
+}
+
+function mealLabel(type) {
+  return MEAL_SLOTS.find((slot) => slot.type === baseMealType(type))?.label || "Comida";
+}
+
+function isActiveMealType(type, count = state.mealCount) {
+  return activeMealSlots(count).some((slot) => slot.type === baseMealType(type));
+}
+
+function parsePlanEntry(key, targetWeek = weekKey()) {
+  const prefix = `${targetWeek}-`;
+  if (!key.startsWith(prefix)) return null;
+  const match = key.slice(prefix.length).match(/^(\d+)-(.+)$/);
+  return match ? { day: Number(match[1]), type: match[2] } : null;
+}
+
 function save() {
   localStorage.setItem("mesa-plans", JSON.stringify(state.plans));
   localStorage.setItem("mesa-notes", JSON.stringify(state.notes));
   localStorage.setItem("mesa-checked", JSON.stringify(state.checked));
   localStorage.setItem("mesa-recipes", JSON.stringify(state.customRecipes));
   localStorage.setItem("mesa-child-menu", JSON.stringify(state.childMenuEnabled));
+  localStorage.setItem("mesa-meal-count", String(state.mealCount));
+  localStorage.setItem("mesa-saved-weeks", JSON.stringify(state.savedWeeks));
   if (!state.isApplyingCloud) scheduleCloudSave();
 }
 
@@ -102,6 +145,8 @@ function renderWeek() {
   $("#week-year").textContent = sunday.getFullYear();
   $("#week-note").value = state.notes[weekKey()] || "";
   $("#child-menu-enabled").checked = state.childMenuEnabled;
+  $("#meal-count").value = String(state.mealCount);
+  $("#week-grid").dataset.mealCount = String(state.mealCount);
 
   const today = dateKey(new Date());
   $("#week-grid").innerHTML = DAYS.map((day, index) => {
@@ -112,8 +157,9 @@ function renderWeek() {
         <div class="day-name"><span>${day}</span>${isToday ? '<span class="today-pill">Hoy</span>' : ""}</div>
         <span class="day-number">${date.getDate()}</span>
       </header>
-      ${renderSlot(index, "lunch", "Comida")}
-      ${renderSlot(index, "dinner", "Cena")}
+      <div class="day-meals">
+        ${activeMealSlots().map((slot) => renderSlot(index, slot.type, slot.label)).join("")}
+      </div>
     </article>`;
   }).join("");
   renderShopping();
@@ -157,7 +203,7 @@ function renderSlot(dayIndex, type, label) {
 function openMealModal(day, type) {
   state.activeSlot = { day: Number(day), type };
   const child = type.endsWith("-child");
-  const mealName = type.startsWith("lunch") ? "Comida" : "Cena";
+  const mealName = mealLabel(type);
   $("#modal-slot").textContent = `${mealName}${child ? " infantil" : ""} · ${DAYS[day]}`;
   $("#meal-search").value = "";
   renderMealOptions();
@@ -189,8 +235,9 @@ function selectMeal(recipeId) {
 function selectedRecipes() {
   const prefix = `${weekKey()}-`;
   return Object.entries(state.plans)
-    .filter(([key]) => key.startsWith(prefix) && (state.childMenuEnabled || !key.endsWith("-child")))
-    .map(([key, value]) => ({ key, recipe: recipeFor(value) }));
+    .map(([key, value]) => ({ key, value, parsed: parsePlanEntry(key) }))
+    .filter(({ key, parsed }) => key.startsWith(prefix) && parsed && isActiveMealType(parsed.type) && (state.childMenuEnabled || !parsed.type.endsWith("-child")))
+    .map(({ key, value, parsed }) => ({ key, day: parsed.day, type: parsed.type, recipe: recipeFor(value) }));
 }
 
 function parseQuantity(value) {
@@ -261,10 +308,9 @@ function renderShopping() {
   </section>`).join("") : `<div class="empty-shopping"><span>🧺</span><h2>Tu cesta está esperando</h2><p>Añade platos al menú y aquí aparecerán sus ingredientes.</p></div>`;
 
   const recipes = selectedRecipes();
-  $("#menu-summary-list").innerHTML = recipes.length ? recipes.map(({ key, recipe }) => {
-    const [, , , day, type, variant] = key.split("-");
-    const childLabel = variant === "child" ? " infantil" : "";
-    return `<div class="summary-meal"><span>${escapeHtml(recipe.icon)}</span><div><strong>${escapeHtml(recipe.name)}</strong><small>${DAYS[Number(day)]} · ${type === "lunch" ? "Comida" : "Cena"}${childLabel}</small></div></div>`;
+  $("#menu-summary-list").innerHTML = recipes.length ? recipes.map(({ day, type, recipe }) => {
+    const childLabel = type.endsWith("-child") ? " infantil" : "";
+    return `<div class="summary-meal"><span>${escapeHtml(recipe.icon)}</span><div><strong>${escapeHtml(recipe.name)}</strong><small>${DAYS[day]} · ${mealLabel(type)}${childLabel}</small></div></div>`;
   }).join("") : `<p class="hero-copy">Todavía no hay platos elegidos.</p>`;
   updateProgress(items);
 }
@@ -368,6 +414,195 @@ function closeModal(selector) {
   if (!$$(".modal-backdrop.open").length) document.body.classList.remove("modal-open");
 }
 
+function cloneRecipe(recipe) {
+  return {
+    id: recipe.id,
+    name: recipe.name,
+    icon: recipe.icon,
+    time: recipe.time,
+    color: recipe.color,
+    ingredients: (recipe.ingredients || []).map((ingredient) => [...ingredient])
+  };
+}
+
+function currentWeekSlots() {
+  return Object.entries(state.plans).flatMap(([key, recipeId]) => {
+    const parsed = parsePlanEntry(key);
+    if (!parsed || !isActiveMealType(parsed.type)) return [];
+    const recipe = recipeFor(recipeId);
+    return recipe ? [{ day: parsed.day, type: parsed.type, recipe: cloneRecipe(recipe) }] : [];
+  });
+}
+
+function weekHasContent() {
+  const prefix = `${weekKey()}-`;
+  return Boolean(state.notes[weekKey()]?.trim()) || Object.keys(state.plans).some((key) => key.startsWith(prefix));
+}
+
+function buildWeekTemplate(title, id = `week-${crypto.randomUUID()}`) {
+  return {
+    id,
+    title,
+    savedAt: new Date().toISOString(),
+    mealCount: state.mealCount,
+    childMenuEnabled: state.childMenuEnabled,
+    note: state.notes[weekKey()] || "",
+    slots: currentWeekSlots()
+  };
+}
+
+function renderSavedWeeks() {
+  const capacity = $("#saved-weeks-capacity");
+  const full = state.savedWeeks.length >= MAX_SAVED_WEEKS;
+  capacity.textContent = full
+    ? "Has alcanzado el máximo de 5 semanas. Elimina o reemplaza una para guardar otra."
+    : `${state.savedWeeks.length} de ${MAX_SAVED_WEEKS} semanas guardadas.`;
+  capacity.classList.toggle("limit-reached", full);
+
+  $("#saved-weeks-list").innerHTML = state.savedWeeks.length ? state.savedWeeks.map((template) => {
+    const mainMeals = (template.slots || []).filter((slot) => !slot.type.endsWith("-child")).length;
+    const savedDate = new Date(template.savedAt);
+    const dateLabel = Number.isNaN(savedDate.getTime()) ? "Fecha desconocida" : savedDate.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+    return `<article class="saved-week-card">
+      <div><h3>${escapeHtml(template.title)}</h3><p>${mainMeals} platos · ${normalizeMealCount(template.mealCount)} comidas/día · ${escapeHtml(dateLabel)}</p></div>
+      <div class="saved-week-actions">
+        <button class="primary-button" type="button" data-load-template="${escapeHtml(template.id)}">Cargar</button>
+        <button class="secondary-button" type="button" data-replace-template="${escapeHtml(template.id)}">Reemplazar</button>
+        <button class="text-button danger-button" type="button" data-delete-template="${escapeHtml(template.id)}">Eliminar</button>
+      </div>
+    </article>`;
+  }).join("") : `<div class="empty-saved-weeks"><span>🗓️</span><p>Todavía no has guardado ninguna semana.</p></div>`;
+}
+
+function openSavedWeeksModal(focusTitle = false) {
+  renderSavedWeeks();
+  openModal("#saved-weeks-modal");
+  if (focusTitle) setTimeout(() => $("#saved-week-name").focus(), 50);
+}
+
+function saveWeekTemplate(event) {
+  event.preventDefault();
+  const title = $("#saved-week-name").value.trim();
+  if (!title) return showToast("Escribe un título para la semana");
+  if (!currentWeekSlots().length && !state.notes[weekKey()]?.trim()) return showToast("Añade algún plato antes de guardar");
+
+  const existingIndex = state.savedWeeks.findIndex((template) => template.title.localeCompare(title, "es", { sensitivity: "base" }) === 0);
+  if (existingIndex >= 0) {
+    if (!confirm(`Ya existe “${state.savedWeeks[existingIndex].title}”. ¿Quieres reemplazarla?`)) return;
+    state.savedWeeks[existingIndex] = buildWeekTemplate(title, state.savedWeeks[existingIndex].id);
+  } else {
+    if (state.savedWeeks.length >= MAX_SAVED_WEEKS) return showToast("Elimina o reemplaza una semana guardada");
+    state.savedWeeks.unshift(buildWeekTemplate(title));
+  }
+  $("#saved-week-name").value = "";
+  save(); renderSavedWeeks(); showToast("Semana guardada");
+}
+
+function sameRecipeContent(left, right) {
+  return left.name === right.name && left.icon === right.icon && left.time === right.time
+    && left.color === right.color && JSON.stringify(left.ingredients || []) === JSON.stringify(right.ingredients || []);
+}
+
+function restoreTemplateRecipe(snapshot) {
+  const builtIn = RECIPES.find((recipe) => recipe.id === snapshot.id);
+  if (builtIn) return builtIn.id;
+  const exact = state.customRecipes.find((recipe) => recipe.id === snapshot.id);
+  if (exact && sameRecipeContent(exact, snapshot)) return exact.id;
+  const equivalent = state.customRecipes.find((recipe) => sameRecipeContent(recipe, snapshot));
+  if (equivalent) return equivalent.id;
+
+  const restored = cloneRecipe(snapshot);
+  if (exact || !restored.id?.startsWith("recipe-")) restored.id = `recipe-${crypto.randomUUID()}`;
+  state.customRecipes.push(restored);
+  return restored.id;
+}
+
+function clearCurrentWeek() {
+  const prefix = `${weekKey()}-`;
+  Object.keys(state.plans).filter((key) => key.startsWith(prefix)).forEach((key) => delete state.plans[key]);
+  Object.keys(state.checked).filter((key) => key.startsWith(prefix)).forEach((key) => delete state.checked[key]);
+  delete state.notes[weekKey()];
+}
+
+function loadWeekTemplate(template) {
+  if (!template) return;
+  if (weekHasContent() && !confirm("La semana actual ya tiene contenido. ¿Quieres reemplazarla por esta plantilla?")) return;
+  clearCurrentWeek();
+  state.mealCount = normalizeMealCount(template.mealCount);
+  state.childMenuEnabled = template.childMenuEnabled ?? state.childMenuEnabled;
+  state.notes[weekKey()] = template.note || "";
+  (template.slots || []).forEach((slot) => {
+    if (!Number.isInteger(slot.day) || slot.day < 0 || slot.day > 6 || !isActiveMealType(slot.type, state.mealCount) || !slot.recipe) return;
+    state.plans[planKey(slot.day, slot.type)] = restoreTemplateRecipe(slot.recipe);
+  });
+  save(); closeModal("#saved-weeks-modal"); renderWeek(); renderRecipeLibrary(); showToast("Semana cargada");
+}
+
+function replaceWeekTemplate(template) {
+  if (!template) return;
+  if (!currentWeekSlots().length && !state.notes[weekKey()]?.trim()) return showToast("Añade algún plato antes de reemplazar");
+  if (!confirm(`¿Reemplazar “${template.title}” con la semana actual?`)) return;
+  const index = state.savedWeeks.findIndex((item) => item.id === template.id);
+  if (index < 0) return;
+  state.savedWeeks[index] = buildWeekTemplate(template.title, template.id);
+  save(); renderSavedWeeks(); showToast("Semana guardada actualizada");
+}
+
+function deleteWeekTemplate(template) {
+  if (!template || !confirm(`¿Eliminar la semana guardada “${template.title}”?`)) return;
+  state.savedWeeks = state.savedWeeks.filter((item) => item.id !== template.id);
+  save(); renderSavedWeeks(); showToast("Semana guardada eliminada");
+}
+
+function buildWeekEmail() {
+  const slots = activeMealSlots();
+  if (!selectedRecipes().length) return null;
+
+  const lines = ["MENÚ SEMANAL", `${$("#week-range").textContent} · ${$("#week-year").textContent}`];
+  const note = state.notes[weekKey()]?.trim();
+  if (note) lines.push("", `Nota: ${note}`);
+  lines.push("", "MENÚ");
+  DAYS.forEach((day, dayIndex) => {
+    lines.push("", day);
+    slots.forEach((slot) => {
+      const main = recipeFor(state.plans[planKey(dayIndex, slot.type)]);
+      let row = `- ${slot.label}: ${main?.name || "—"}`;
+      if (state.childMenuEnabled) {
+        const child = recipeFor(state.plans[planKey(dayIndex, `${slot.type}-child`)]);
+        row += ` · Infantil: ${child?.name || "—"}`;
+      }
+      lines.push(row);
+    });
+  });
+
+  const items = shoppingItems();
+  lines.push("", "LISTA DE LA COMPRA");
+  if (!items.length) lines.push("Sin ingredientes.");
+  const groups = new Map();
+  items.forEach((item) => {
+    if (!groups.has(item.group)) groups.set(item.group, []);
+    groups.get(item.group).push(item);
+  });
+  groups.forEach((groupItems, group) => {
+    lines.push("", group);
+    groupItems.forEach((item) => {
+      const record = shoppingRecord(item);
+      const mark = itemCompletion(item) >= 1 ? "[x]" : "[ ]";
+      const partial = Number(record.bought) > 0 && itemCompletion(item) < 1 ? ` (${formatAmount(Number(record.bought))} comprado)` : "";
+      lines.push(`${mark} ${item.name} — ${record.required}${partial}`);
+    });
+  });
+
+  const subject = `Menú semanal · ${$("#week-range").textContent}`;
+  return { subject, body: lines.join("\n") };
+}
+
+function emailWeek() {
+  const email = buildWeekEmail();
+  if (!email) return showToast("Primero añade algún plato al menú");
+  window.location.href = `mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
+}
+
 function saveRecipeFromForm(event) {
   event.preventDefault();
   const id = $("#recipe-edit-id").value || `recipe-${crypto.randomUUID()}`;
@@ -405,7 +640,15 @@ let realtimeChannel = null;
 let cloudSaveTimer = null;
 
 function localSnapshot() {
-  return { plans: state.plans, notes: state.notes, checked: state.checked, customRecipes: state.customRecipes, childMenuEnabled: state.childMenuEnabled };
+  return {
+    plans: state.plans,
+    notes: state.notes,
+    checked: state.checked,
+    customRecipes: state.customRecipes,
+    childMenuEnabled: state.childMenuEnabled,
+    mealCount: state.mealCount,
+    savedWeeks: state.savedWeeks
+  };
 }
 
 function scheduleCloudSave() {
@@ -438,6 +681,8 @@ function applyCloudState(data) {
   state.checked = data.checked || {};
   state.customRecipes = data.customRecipes || [];
   state.childMenuEnabled = data.childMenuEnabled ?? state.childMenuEnabled;
+  state.mealCount = normalizeMealCount(data.mealCount ?? state.mealCount);
+  state.savedWeeks = Array.isArray(data.savedWeeks) ? data.savedWeeks.slice(0, MAX_SAVED_WEEKS) : state.savedWeeks;
   save();
   state.isApplyingCloud = false;
   renderWeek(); renderRecipeLibrary();
@@ -518,11 +763,33 @@ function bindExtendedEvents() {
   $("#account-button").addEventListener("click", () => { updateAccountUI(); openModal("#account-modal"); });
   $("#close-account-modal").addEventListener("click", () => closeModal("#account-modal"));
   $("#account-modal").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeModal("#account-modal"); });
-  $("#options-button").addEventListener("click", () => { $("#child-menu-enabled").checked = state.childMenuEnabled; openModal("#options-modal"); });
+  $("#options-button").addEventListener("click", () => {
+    $("#child-menu-enabled").checked = state.childMenuEnabled;
+    $("#meal-count").value = String(state.mealCount);
+    openModal("#options-modal");
+  });
   $("#close-options-modal").addEventListener("click", () => closeModal("#options-modal"));
   $("#options-modal").addEventListener("click", (event) => {
     if (event.target === event.currentTarget) closeModal("#options-modal");
   });
+  $("#save-week").addEventListener("click", () => openSavedWeeksModal(true));
+  $("#load-week").addEventListener("click", () => openSavedWeeksModal(false));
+  $("#close-saved-weeks-modal").addEventListener("click", () => closeModal("#saved-weeks-modal"));
+  $("#saved-weeks-modal").addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) closeModal("#saved-weeks-modal");
+  });
+  $("#save-week-form").addEventListener("submit", saveWeekTemplate);
+  $("#saved-weeks-list").addEventListener("click", (event) => {
+    const action = event.target.closest("[data-load-template], [data-replace-template], [data-delete-template]");
+    if (!action) return;
+    const id = action.dataset.loadTemplate || action.dataset.replaceTemplate || action.dataset.deleteTemplate;
+    const template = state.savedWeeks.find((item) => item.id === id);
+    if (action.dataset.loadTemplate) loadWeekTemplate(template);
+    else if (action.dataset.replaceTemplate) replaceWeekTemplate(template);
+    else deleteWeekTemplate(template);
+  });
+  $("#email-week").addEventListener("click", emailWeek);
+  $("#email-week-shopping").addEventListener("click", emailWeek);
   $("#login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!cloudClient) return showToast("La nube aún no está configurada");
@@ -566,6 +833,11 @@ $("#close-modal").addEventListener("click", closeMealModal);
 $("#meal-modal").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeMealModal(); });
 $("#meal-search").addEventListener("input", (event) => renderMealOptions(event.target.value));
 $("#week-note").addEventListener("input", (event) => { state.notes[weekKey()] = event.target.value; save(); });
+$("#meal-count").addEventListener("change", (event) => {
+  state.mealCount = normalizeMealCount(event.target.value);
+  save(); renderWeek();
+  showToast(`${state.mealCount} comidas al día`);
+});
 $("#child-menu-enabled").addEventListener("change", (event) => {
   state.childMenuEnabled = event.target.checked;
   save();
@@ -605,7 +877,13 @@ $("#copy-list").addEventListener("click", async () => {
     return `${mark} ${item.name} — ${record.required}${partial}`;
   }).join("\n");
   if (!text) return showToast("Primero añade algún plato");
-  await navigator.clipboard.writeText(text); showToast("Lista copiada");
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("Lista copiada");
+  } catch (error) {
+    console.error("Mesa clipboard:", error);
+    showToast("No se pudo copiar la lista");
+  }
 });
 $("#reset-menu")?.addEventListener("click", () => {
   if (!confirm("¿Quieres vaciar el menú de esta semana?")) return;
@@ -613,6 +891,10 @@ $("#reset-menu")?.addEventListener("click", () => {
   Object.keys(state.plans).filter((key) => key.startsWith(prefix)).forEach((key) => delete state.plans[key]);
   save(); renderWeek(); showToast("Menú semanal vaciado");
 });
-document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMealModal(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  closeMealModal();
+  $$(".modal-backdrop.open").forEach((modal) => closeModal(`#${modal.id}`));
+});
 
 initializeApp();

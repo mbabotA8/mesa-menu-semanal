@@ -8,14 +8,16 @@ Para el modo local, abre `index.html` en un navegador moderno. Para usar acceso 
 
 ## Funciones incluidas
 
-- Vista semanal de comidas y cenas, adaptable a móvil.
-- Menú infantil opcional con segunda comida y cena compactas, sincronizadas y vinculadas a la compra.
+- Vista semanal adaptable a móvil con entre 2 y 5 comidas diarias configurables.
+- Menú infantil opcional para todas las franjas activas, sincronizado y vinculado a la compra.
 - Recetario de platos habituales con búsqueda.
 - Submenú visual de platos habituales.
 - Creación y edición de recetas con ingredientes, cantidades y más de 50 iconos categorizados.
 - Navegación entre semanas y notas semanales.
+- Hasta cinco plantillas semanales con título para guardar, cargar, reemplazar o eliminar menús completos.
 - Lista de la compra agrupada por secciones.
 - Cantidades necesarias editables, compra parcial, progreso proporcional, copia y persistencia local.
+- Preparación de un correo con el menú semanal y la lista de la compra.
 - Acceso sin contraseña mediante enlace enviado por email.
 - Sincronización en tiempo real del menú, compra, notas y recetario.
 
